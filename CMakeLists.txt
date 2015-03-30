@@ -37,16 +37,16 @@ set(CGALINTERP_LIB_NAME cgalinterp)
 set(PYTHON_INSTALL_PREFIX ${CMAKE_INSTALL_PREFIX} CACHE PATH "Install path for Python libraries.")
 
 set(BOOST_INCLUDE_DIR /usr/local/include CACHE PATH "Include PATH for Boost")
-#set(BOOST_LIB_PATH /usr/local/lib CACHE PATH "Library PATH for Boost")
+set(BOOST_LIB_PATH /usr/local/lib CACHE PATH "Library PATH for Boost")
 
 set(CGAL_INCLUDE_DIR /usr/local/include CACHE PATH "Include PATH for CGAL")
-#set(CGAL_LIB_PATH /usr/local/lib CACHE PATH "Library PATH for CGAL")
+set(CGAL_LIB_PATH /usr/local/lib CACHE PATH "Library PATH for CGAL")
 
 set(GMP_INCLUDE_DIR /usr/local/include CACHE PATH "Include PATH for GMP")
-#set(GMP_LIB_PATH /usr/local/lib CACHE PATH "Library PATH for GMP")
+set(GMP_LIB_PATH /usr/local/lib CACHE PATH "Library PATH for GMP")
 
 set(MPFR_INCLUDE_DIR /usr/local/include CACHE PATH "Include PATH for MPFR")
-#set(MPFR_LIB_PATH /usr/local/lib CACHE PATH "Library PATH for MPFR")
+set(MPFR_LIB_PATH /usr/local/lib CACHE PATH "Library PATH for MPFR")
 ###############################################################################
 
 ###############################################################################
@@ -104,7 +104,7 @@ include_directories(${MPFR_INCLUDE_DIR})
 ###############################################################################
 # Build library
 
-set(PYTHON_ARGS "--extraincludes=${CGAL_INCLUDE_DIR} ${BOOST_INCLUDE_DIR} ${MPFR_INCLUDE_DIR}")
+set(PYTHON_ARGS "--extraincludes=${CGAL_INCLUDE_DIR}:${BOOST_INCLUDE_DIR}:${MPFR_INCLUDE_DIR}:${GMP_INCLUDE_DIR} --extralibs=${CGAL_LIB_PATH}:${BOOST_LIB_PATH}:${MPFR_LIB_PATH}:${GMP_LIB_PATH}")
 MESSAGE(STATUS "${PYTHON_ARGS}")
 
 # Python 

@@ -66,8 +66,9 @@ static struct CGALInterpState _state;
 
 static PyObject *cgalinterp_naturalneighbour(PyObject *self, PyObject *args)
 {
-PyObject *pXVals, *pYVals, *pZVals, *pXGrid, *pYGrid;
-PyObject *pOutArray;
+    //std::cout.precision(12);
+    PyObject *pXVals, *pYVals, *pZVals, *pXGrid, *pYGrid;
+    PyObject *pOutArray;
 
     if( !PyArg_ParseTuple(args, "OOOOO:NaturalNeighbour", &pXVals, &pYVals, &pZVals, &pXGrid, &pYGrid))
         return NULL;
@@ -78,11 +79,23 @@ PyObject *pOutArray;
         return NULL;
     }
 
-    // TODO: check dimensions match
-    // and types ok
+    // Check dimensions match
+    if( (PyArray_DIM(pXVals, 0) != PyArray_DIM(pYVals, 0)) | (PyArray_DIM(pXVals, 0) != PyArray_DIM(pZVals, 0)))
+    {
+        PyErr_SetString(GETSTATE(self)->error, "Training X, Y and Z arrays must all be of the same length");
+        return NULL;
+    }
+    
+    if( (PyArray_DIM(pXGrid, 0) != PyArray_DIM(pYGrid, 0)) | (PyArray_DIM(pXGrid, 1) != PyArray_DIM(pYGrid, 1)))
+    {
+        PyErr_SetString(GETSTATE(self)->error, "X and Y grids must have the same dimensions");
+        return NULL;
+    }
+    
+    // TODO: check types ok
 
-    npy_intp nRows = PyArray_DIM(pXVals, 0);
-    npy_intp nCols = PyArray_DIM(pXVals, 1);
+    npy_intp nRows = PyArray_DIM(pXGrid, 0);
+    npy_intp nCols = PyArray_DIM(pXGrid, 1);
     
     npy_intp nVals = PyArray_DIM(pXVals, 0);
 
@@ -99,7 +112,6 @@ PyObject *pOutArray;
         PyErr_SetString(GETSTATE(self)->error, "Not enough points, need at least 3.");
         return NULL;
     }    
-
 
     if( PyArray_DIM(pXVals, 0) < 100 )
     {
@@ -142,14 +154,17 @@ PyObject *pOutArray;
     }
     try
     {
+        //std::cout << "Perform Interpolation\n";
         DelaunayTriangulation *dt = new DelaunayTriangulation();
         PointValueMap *values = new PointValueMap();
-            
+        
+        //std::cout << "Building Triangulation\n";
         for(npy_intp i = 0; i < nVals; ++i)
         {
-            K::Point_2 cgalPt(*((double*)PyArray_GETPTR1(pXVals, i)), *((double*)PyArray_GETPTR1(pYVals, i)));
+            K::Point_2 cgalPt( *((double*)PyArray_GETPTR1(pXVals, i)), *((double*)PyArray_GETPTR1(pYVals, i)) );
             dt->insert(cgalPt);
             CGALCoordType value = *((double*)PyArray_GETPTR1(pZVals, i));
+            //std::cout << i << "\t[" << *((double*)PyArray_GETPTR1(pXVals, i)) << ", " << *((double*)PyArray_GETPTR1(pYVals, i)) << "] = " << *((double*)PyArray_GETPTR1(pZVals, i)) << std::endl;
             values->insert(std::make_pair(cgalPt, value));
         }
 
@@ -158,22 +173,21 @@ PyObject *pOutArray;
         {
             for(npy_intp j = 0; j < nCols; ++j)
             {
-                    
-                //K::Point_2 p(xGrid[i][j], yGrid[i][j]);
-                K::Point_2 p(*((double*)PyArray_GETPTR2(pXVals, i, j)), 
-                            *((double*)PyArray_GETPTR2(pYVals, i, j)));
+                K::Point_2 p( *((double*)PyArray_GETPTR2(pXGrid, i, j)), *((double*)PyArray_GETPTR2(pYGrid, i, j)) );
                 CoordinateVector coords;
                 CGAL::Triple<std::back_insert_iterator<CoordinateVector>, K::FT, bool> result = CGAL::natural_neighbor_coordinates_2(*dt, p, std::back_inserter(coords));
                 if(!result.third)
                 {
+                    //std::cout << "\t Not within convex hull\n";
                     // Not within convex hull of dataset
                     *((double*)PyArray_GETPTR2(pOutArray, i, j)) = 0.0;
                 }
                 else
                 {
                     CGALCoordType norm = result.second;
-                    PointValueMap values;
-                    CGALCoordType outValue = CGAL::linear_interpolation(coords.begin(), coords.end(), norm, CGAL::Data_access<PointValueMap>(values));
+                    CGALCoordType outValue = CGAL::linear_interpolation(coords.begin(), coords.end(), norm, CGAL::Data_access<PointValueMap>(*values));
+                    //std::cout << "pt: [" << *((double*)PyArray_GETPTR2(pXGrid, i, j)) << ", " << *((double*)PyArray_GETPTR2(pYGrid, i, j)) << "]\n";
+                    //std::cout << "\t NN Value = " << outValue << std::endl;
                     *((double*)PyArray_GETPTR2(pOutArray, i, j)) = outValue;
                 }
             }
@@ -188,181 +202,7 @@ PyObject *pOutArray;
         return NULL;
     }
     return pOutArray;
-}
-/*
-    double** interpGridNN(double *xVals, double *yVals, double *zVals, size_t nVals, double **xGrid, double **yGrid, size_t nXGrid, size_t nYGrid)throw(std::exception)
-    {
-        double **outVals = NULL;
-        try
-        {
-            if(nVals < 3)
-            {
-                throw std::exception("Not enough points, need at least 3.");
-            }
-            else if(nVals < 100)
-            {
-                double meanX = 0;
-                double meanY = 0;
-                
-                double varX = 0;
-                double varY = 0;
-                
-                for(size_t i = 0; i < nVals; ++i)
-                {
-                    meanX += xVals[i];
-                    meanY += yVals[i];
-                }
-                
-                meanX = meanX / nVals;
-                meanY = meanY / nVals;
-                
-                //std::cout << "meanX = " << meanX << std::endl;
-                //std::cout << "meanY = " << meanY << std::endl;
-                
-                for(size_t i = 0; i < nVals; ++i)
-                {
-                    varX += xVals[i] - meanX;
-                    varY += yVals[i] - meanY;
-                }
-                
-                varX = fabs(varX / nVals);
-                varY = fabs(varY / nVals);
-                
-                //std::cout << "varX = " << varX << std::endl;
-                //std::cout << "varY = " << varX << std::endl;
-                
-                if((varX < 4) | (varY < 4))
-                {
-                    throw std::exception("Points are all within a line.");
-                }
-            }
-            
-            DelaunayTriangulation *dt = new DelaunayTriangulation();
-            PointValueMap *values = new PointValueMap();
-            
-            for(size_t i = 0; i < nVals; ++i)
-            {
-                K::Point_2 cgalPt(xVals[i], yVals[i]);
-                dt->insert(cgalPt);
-                CGALCoordType value = zVals[i];
-                values->insert(std::make_pair(cgalPt, value));
-            }
-            
-            outVals = new double*[nYGrid];
-            for(size_t i  = 0; i < nYGrid; ++i)
-            {
-                outVals[i] = new double*[nXGrid];
-                for(size_t j = 0; j < nXGrid; ++j)
-                {
-                    
-                    K::Point_2 p(xGrid[i][j], yGrid[i][j]);
-                    CoordinateVector coords;
-                    CGAL::Triple<std::back_insert_iterator<CoordinateVector>, K::FT, bool> result = CGAL::natural_neighbor_coordinates_2(*dt, p, std::back_inserter(coords));
-                    if(!result.third)
-                    {
-                        // Not within convex hull of dataset
-                        outVals[i][j] = 0.0;
-                    }
-                    else
-                    {
-                        CGALCoordType norm = result.second;
-                        CGALCoordType outValue = CGAL::linear_interpolation(coords.begin(), coords.end(), norm, CGAL::Data_access<PointValueMap>(*this->values));
-                        outVals[i][j] = outValue;
-                    }
-                }
-            }
-            
-            delete dt;
-            delete values;
-        }
-        catch(std::exception &e)
-        {
-            throw e;
-        }
-        return outVals;
-    }
-    
-
-    double** interpGridPlaneFit(double *xVals, double *yVals, double *zVals, size_t nVals, double **xGrid, double **yGrid, size_t nXGrid, size_t nYGrid)throw(std::exception)
-    {
-        double **outVals = NULL;
-        try
-        {
-            /*
-            if(nVals < 3)
-            {
-                throw std::exception("Not enough points, need at least 3.");
-            }
-            else if(nVals < 100)
-            {
-                double meanX = 0;
-                double meanY = 0;
-                
-                double varX = 0;
-                double varY = 0;
-                
-                for(size_t i = 0; i < nVals; ++i)
-                {
-                    meanX += xVals[i];
-                    meanY += yVals[i];
-                }
-                
-                meanX = meanX / nVals;
-                meanY = meanY / nVals;
-                
-                //std::cout << "meanX = " << meanX << std::endl;
-                //std::cout << "meanY = " << meanY << std::endl;
-                
-                for(size_t i = 0; i < nVals; ++i)
-                {
-                    varX += xVals[i] - meanX;
-                    varY += yVals[i] - meanY;
-                }
-                
-                varX = fabs(varX / nVals);
-                varY = fabs(varY / nVals);
-                
-                //std::cout << "varX = " << varX << std::endl;
-                //std::cout << "varY = " << varX << std::endl;
-                
-                if((varX < 4) | (varY < 4))
-                {
-                    throw std::exception("Points are all within a line.");
-                }
-            }
-            
-            DelaunayTriangulation *dt = new DelaunayTriangulation();
-            PointValueMap *values = new PointValueMap();
-            
-            for(size_t i = 0; i < nVals; ++i)
-            {
-                K::Point_2 cgalPt(xVals[i], yVals[i]);
-                dt->insert(cgalPt);
-                CGALCoordType value = zVals[i];
-                values->insert(std::make_pair(cgalPt, value));
-            }
-            
-            outVals = new double*[nYGrid];
-            for(size_t i  = 0; i < nYGrid; ++i)
-            {
-                outVals[i] = new double*[nXGrid];
-                for(size_t j = 0; j < nXGrid; ++j)
-                {
-                    outVals[i][j] = 0.0;
-                }
-            }
-            
-            delete dt;
-            delete values;
-        }
-        catch(std::exception &e)
-        {
-            throw e;
-        }
-        return outVals;
-    }
-    */
-    
+}    
 
 /* Our list of functions in this module*/
 static PyMethodDef CGALInterpMethods[] = {
