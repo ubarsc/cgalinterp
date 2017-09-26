@@ -21,7 +21,9 @@
  */
 
 // following needed or CGAL templates misbehave
-#define NDEBUG
+#ifndef NDEBUG
+    #define NDEBUG
+#endif
 
 #include <math.h>
 
@@ -67,8 +69,8 @@ static struct CGALInterpState _state;
 static PyObject *cgalinterp_naturalneighbour(PyObject *self, PyObject *args)
 {
     //std::cout.precision(12);
-    PyObject *pXVals, *pYVals, *pZVals, *pXGrid, *pYGrid;
-    PyObject *pOutArray;
+    PyArrayObject *pXVals, *pYVals, *pZVals, *pXGrid, *pYGrid;
+    PyArrayObject *pOutArray;
 
     if( !PyArg_ParseTuple(args, "OOOOO:NaturalNeighbour", &pXVals, &pYVals, &pZVals, &pXGrid, &pYGrid))
         return NULL;
@@ -100,7 +102,7 @@ static PyObject *cgalinterp_naturalneighbour(PyObject *self, PyObject *args)
     npy_intp nVals = PyArray_DIM(pXVals, 0);
 
     // Create output
-    pOutArray = PyArray_EMPTY(2, PyArray_DIMS(pXGrid), NPY_DOUBLE, 0);
+    pOutArray = (PyArrayObject*)PyArray_EMPTY(2, PyArray_DIMS(pXGrid), NPY_DOUBLE, 0);
     if( pOutArray == NULL )
     {
         PyErr_SetString(GETSTATE(self)->error, "Failed to create array");
@@ -122,7 +124,7 @@ static PyObject *cgalinterp_naturalneighbour(PyObject *self, PyObject *args)
         double varX = 0;
         double varY = 0;
                 
-        for(size_t i = 0; i < nVals; ++i)
+        for(npy_intp i = 0; i < nVals; ++i)
         {
             meanX += *((double*)PyArray_GETPTR1(pXVals, i));
             meanY += *((double*)PyArray_GETPTR1(pYVals, i));
@@ -134,7 +136,7 @@ static PyObject *cgalinterp_naturalneighbour(PyObject *self, PyObject *args)
         //std::cout << "meanX = " << meanX << std::endl;
         //std::cout << "meanY = " << meanY << std::endl;
                 
-        for(size_t i = 0; i < nVals; ++i)
+        for(npy_intp i = 0; i < nVals; ++i)
         {
             varX += *((double*)PyArray_GETPTR1(pXVals, i)) - meanX;
             varY += *((double*)PyArray_GETPTR1(pYVals, i)) - meanY;
@@ -201,7 +203,7 @@ static PyObject *cgalinterp_naturalneighbour(PyObject *self, PyObject *args)
         PyErr_SetString(GETSTATE(self)->error, e.what());
         return NULL;
     }
-    return pOutArray;
+    return (PyObject*)pOutArray;
 }    
 
 /* Our list of functions in this module*/

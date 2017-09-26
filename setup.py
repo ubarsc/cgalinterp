@@ -1,37 +1,22 @@
 from __future__ import print_function
 import os
-import sys
 from numpy.distutils.core import setup, Extension
+
+INC_VAR = 'CGINT_EXTRA_INCLUDES'
+LIB_VAR = 'CGINT_EXTRA_LIBS'
 
 def getFlags():
     """
     Return the include and lib flags required
     """
-    extra_includes = []
-    extra_libs = []
-    new_argv = [sys.argv[0]]
-    #print("Flag ARGS: ", sys.argv[1:])
-    for arg in sys.argv[1:]:
-        handled = False
-        if arg.startswith("--extraincludes="):
-            incStr = arg.split(' ')[0].split('=')[1]
-            libstr = arg.split(' ')[1].split('=')[1]
-            extra = incStr.split(':')
-            print('extra', extra)
-            extra_includes.extend(extra)
-            extra = libstr.split(':')
-            print('extra', extra)
-            extra_libs.extend(extra)
-            handled = True
-        if arg.startswith('--help'):
-            print('Header options:')
-            for opt in INCLUDE_OPTIONS:
-                print(opt, 'Include path')
-        if not handled:
-            new_argv.append(arg)
-
-    sys.argv = new_argv
-    return extra_includes, extra_libs
+    extra_includes = None
+    exta_libs = None
+    if INC_VAR in os.environ:
+        extra_includes = os.environ[INC_VAR].split(os.pathsep)
+    if INC_VAR in os.environ:
+        extra_includes = os.environ[INC_VAR].split(os.pathsep)
+    return extra_includes, exta_libs    
+    
 
 # get the flags for GDAL etc
 extraincludes, extralibs = getFlags()
@@ -43,10 +28,11 @@ cgalinterpmodule = Extension(name="cgalinterp",
                 sources=["src/cgalinterp.cpp",],
                 include_dirs=extraincludes,
                 libraries=['CGAL', 'mpfr', 'gmp'],
-                library_dirs=extralibs)
+                library_dirs=extralibs,
+                define_macros=[('NPY_NO_DEPRECATED_API', 'NPY_1_7_API_VERSION')])
 
 setup(name="cgalinterp",
-        version="0.1",
+        version="0.2",
         ext_modules=[cgalinterpmodule],
         description="Python Bindings for CGAL",
         author="Sam Gillingham",
