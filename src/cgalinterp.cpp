@@ -164,17 +164,17 @@ static PyObject *cgalinterp_naturalneighbour(PyObject *self, PyObject *args)
     try
     {
         //std::cout << "Perform Interpolation\n";
-        DelaunayTriangulation *dt = new DelaunayTriangulation();
-        PointValueMap *values = new PointValueMap();
+        DelaunayTriangulation dt;
+        PointValueMap values;
         
         //std::cout << "Building Triangulation\n";
         for(npy_intp i = 0; i < nVals; ++i)
         {
             K::Point_2 cgalPt( *((double*)PyArray_GETPTR1(pXVals, i)), *((double*)PyArray_GETPTR1(pYVals, i)) );
-            dt->insert(cgalPt);
+            dt.insert(cgalPt);
             CGALCoordType value = *((double*)PyArray_GETPTR1(pZVals, i));
             //std::cout << i << "\t[" << *((double*)PyArray_GETPTR1(pXVals, i)) << ", " << *((double*)PyArray_GETPTR1(pYVals, i)) << "] = " << *((double*)PyArray_GETPTR1(pZVals, i)) << std::endl;
-            values->insert(std::make_pair(cgalPt, value));
+            values.insert(std::make_pair(cgalPt, value));
         }
 
 
@@ -184,7 +184,7 @@ static PyObject *cgalinterp_naturalneighbour(PyObject *self, PyObject *args)
             {
                 K::Point_2 p( *((double*)PyArray_GETPTR2(pXGrid, i, j)), *((double*)PyArray_GETPTR2(pYGrid, i, j)) );
                 CoordinateVector coords;
-                CGAL::Triple<std::back_insert_iterator<CoordinateVector>, K::FT, bool> result = CGAL::natural_neighbor_coordinates_2(*dt, p, std::back_inserter(coords));
+                CGAL::Triple<std::back_insert_iterator<CoordinateVector>, K::FT, bool> result = CGAL::natural_neighbor_coordinates_2(dt, p, std::back_inserter(coords));
                 if(!result.third)
                 {
                     //std::cout << "\t Not within convex hull\n";
@@ -194,16 +194,13 @@ static PyObject *cgalinterp_naturalneighbour(PyObject *self, PyObject *args)
                 else
                 {
                     CGALCoordType norm = result.second;
-                    CGALCoordType outValue = CGAL::linear_interpolation(coords.begin(), coords.end(), norm, CGAL::Data_access<PointValueMap>(*values));
+                    CGALCoordType outValue = CGAL::linear_interpolation(coords.begin(), coords.end(), norm, CGAL::Data_access<PointValueMap>(values));
                     //std::cout << "pt: [" << *((double*)PyArray_GETPTR2(pXGrid, i, j)) << ", " << *((double*)PyArray_GETPTR2(pYGrid, i, j)) << "]\n";
                     //std::cout << "\t NN Value = " << outValue << std::endl;
                     *((double*)PyArray_GETPTR2(pOutArray, i, j)) = outValue;
                 }
             }
         }
-            
-        delete dt;
-        delete values;
     }
     catch(std::exception &e)
     {
@@ -279,23 +276,23 @@ static PyObject *cgalinterp_naturalneighbour_pts(PyObject *self, PyObject *args)
     try
     {
         //std::cout << "Perform Interpolation\n";
-        DelaunayTriangulation *dt = new DelaunayTriangulation();
-        PointValueMap *values = new PointValueMap();
+        DelaunayTriangulation dt;
+        PointValueMap values;
         
         //std::cout << "Building Triangulation\n";
         for(i = 0; i < nVals; ++i)
         {
             K::Point_2 cgalPt( *((double*)PyArray_GETPTR1(pXVals, i)), *((double*)PyArray_GETPTR1(pYVals, i)) );
-            dt->insert(cgalPt);
+            dt.insert(cgalPt);
             CGALCoordType value = *((double*)PyArray_GETPTR1(pZVals, i));
             //std::cout << i << "\t[" << *((double*)PyArray_GETPTR1(pXVals, i)) << ", " << *((double*)PyArray_GETPTR1(pYVals, i)) << "] = " << *((double*)PyArray_GETPTR1(pZVals, i)) << std::endl;
-            values->insert(std::make_pair(cgalPt, value));
+            values.insert(std::make_pair(cgalPt, value));
         }
         for(i = 0; i < nPts; ++i)
         {
             K::Point_2 p( *((double*)PyArray_GETPTR2(pXYGrid, i, 0)), *((double*)PyArray_GETPTR2(pXYGrid, i, 1)) );
             CoordinateVector coords;
-            CGAL::Triple<std::back_insert_iterator<CoordinateVector>, K::FT, bool> result = CGAL::natural_neighbor_coordinates_2(*dt, p, std::back_inserter(coords));
+            CGAL::Triple<std::back_insert_iterator<CoordinateVector>, K::FT, bool> result = CGAL::natural_neighbor_coordinates_2(dt, p, std::back_inserter(coords));
             if(!result.third)
             {
                 //std::cout << "\t Not within convex hull\n";
@@ -305,15 +302,12 @@ static PyObject *cgalinterp_naturalneighbour_pts(PyObject *self, PyObject *args)
             else
             {
                 CGALCoordType norm = result.second;
-                CGALCoordType outValue = CGAL::linear_interpolation(coords.begin(), coords.end(), norm, CGAL::Data_access<PointValueMap>(*values));
+                CGALCoordType outValue = CGAL::linear_interpolation(coords.begin(), coords.end(), norm, CGAL::Data_access<PointValueMap>(values));
                 //std::cout << "pt: [" << *((double*)PyArray_GETPTR2(pXGrid, i, j)) << ", " << *((double*)PyArray_GETPTR2(pYGrid, i, j)) << "]\n";
                 //std::cout << "\t NN Value = " << outValue << std::endl;
                 *((double*)PyArray_GETPTR1(pOutArray, i)) = outValue;
             }
         }
-            
-        delete dt;
-        delete values;
     }
     catch(std::exception &e)
     {
